@@ -73,7 +73,7 @@ export const Header = () => {
             </button>
             <ThemeToggle />
             <Button variant="outline" size="sm" asChild>
-              <a href="/Resume_Sultan_Khot_Dot_Net" download="Resume_Sultan_Khot_Dot_Net.pdf">
+            <a href="/Resume_Sultan_Khot_Dot_Net.pdf" download="Resume_Sultan_Khot_Dot_Net.pdf">
                 <Download className="mr-2 h-4 w-4" />
                 Resume
               </a>
@@ -128,7 +128,8 @@ export const Header = () => {
             >
               Contact
             </button>
-   <ThemeToggle />
+{/* Desktop Menu */}
+<ThemeToggle />
 <Button variant="outline" size="sm" asChild>
   <a href="/Resume_Sultan_Khot_Dot_Net.pdf" download="Resume_Sultan_Khot_Dot_Net.pdf">
     <Download className="mr-2 h-4 w-4" />
