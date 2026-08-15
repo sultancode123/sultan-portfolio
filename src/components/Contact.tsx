@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Phone, Mail, Linkedin, MapPin, Send, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import emailjs from "@emailjs/browser";
+import ReCAPTCHA from "react-google-recaptcha";
+import Swal from "sweetalert2";
+
+const MESSAGE_MAX_LENGTH = 500;
+const RECAPTCHA_SITE_KEY = "6LfwAoctAAAAACE3sk62c-mX60N4BkC0c-uonkNz"; // yahan apni site key daalo
 
 export const Contact = () => {
   const [formData, setFormData] = useState({
@@ -14,7 +18,8 @@ export const Contact = () => {
     message: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const contactInfo = [
     {
@@ -26,8 +31,8 @@ export const Contact = () => {
     {
       icon: Mail,
       title: "Email",
-      value: "khotsultan143@gmail.com",
-      href: "mailto:khotsultan143@gmail.com"
+      value: "sultankhot16@gmail.com",
+      href: "mailto:sultankhot16@gmail.com"
     },
     {
       icon: Linkedin,
@@ -43,14 +48,80 @@ export const Contact = () => {
     }
   ];
 
+  // Name field: sirf letters aur space allow karo, numbers/special chars block
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const allowedKeys = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"];
+    if (allowedKeys.includes(e.key)) return;
+    if (!/^[a-zA-Z\s]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+    setFormData(prev => ({ ...prev, name: value }));
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, email: e.target.value }));
+  };
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value.slice(0, MESSAGE_MAX_LENGTH);
+    setFormData(prev => ({ ...prev, message: value }));
+  };
+
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.name || !formData.email || !formData.message) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive"
+
+    // Name validation
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid Name",
+        text: "Please enter a valid name (letters only, minimum 2 characters).",
+        confirmButtonText: "OK",
+        confirmButtonColor: "#0ea5e9"
+      });
+      return;
+    }
+
+    // Email validation
+    if (!formData.email.trim() || !isValidEmail(formData.email)) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid Email",
+        text: "Please enter a valid email address (must contain @ and a domain).",
+        confirmButtonText: "OK",
+        confirmButtonColor: "#0ea5e9"
+      });
+      return;
+    }
+
+    // Message validation
+    if (!formData.message.trim() || formData.message.trim().length < 10) {
+      Swal.fire({
+        icon: "warning",
+        title: "Message Too Short",
+        text: "Please write a message with at least 10 characters.",
+        confirmButtonText: "OK",
+        confirmButtonColor: "#0ea5e9"
+      });
+      return;
+    }
+
+    // reCAPTCHA validation
+    if (!captchaToken) {
+      Swal.fire({
+        icon: "warning",
+        title: "Verification Required",
+        text: "Please complete the reCAPTCHA verification before submitting.",
+        confirmButtonText: "OK",
+        confirmButtonColor: "#0ea5e9"
       });
       return;
     }
@@ -70,36 +141,35 @@ export const Contact = () => {
         'template_2oit62l',
         templateParams,
         'ualhxnO-fe73BNLZe'
-      );  
+      );
 
-      toast({
+      Swal.fire({
+        icon: "success",
         title: "Message Sent!",
-        description: "Thank you for your message. I'll get back to you soon!",
+        text: "Thank you for your message. I'll get back to you soon!",
+        confirmButtonText: "OK",
+        confirmButtonColor: "#0ea5e9"
       });
 
       setFormData({ name: "", email: "", message: "" });
+      setCaptchaToken(null);
+      recaptchaRef.current?.reset();
     } catch (error) {
       console.error('EmailJS Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message. Please try again or contact me directly.",
-        variant: "destructive"
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Send",
+        text: "Something went wrong. Please try again or contact me directly.",
+        confirmButtonText: "OK",
+        confirmButtonColor: "#0ea5e9"
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
   return (
     <section id="contact" className="py-20 bg-gradient-to-br from-background via-section-bg to-background relative overflow-hidden">
-      {/* Background decorative elements */}
       <div className="absolute inset-0">
         <div className="absolute top-24 left-24 w-32 h-32 bg-primary/5 rounded-full blur-3xl animate-float"></div>
         <div className="absolute bottom-20 right-20 w-40 h-40 bg-accent-orange/5 rounded-full blur-3xl animate-pulse"></div>
@@ -117,7 +187,6 @@ export const Contact = () => {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
-          {/* Contact Information */}
           <div className="space-y-8 animate-slide-up" style={{animationDelay: '0.2s'}}>
             <div className="bg-glass backdrop-blur-glass border border-glass-border rounded-2xl p-8 shadow-glass">
               <h3 className="font-heading text-2xl font-semibold text-foreground mb-6">
@@ -158,7 +227,6 @@ export const Contact = () => {
             </div>
           </div>
 
-          {/* Enhanced Contact Form */}
           <Card className="bg-glass backdrop-blur-glass border border-glass-border shadow-glass hover:shadow-glow transition-all duration-300 animate-slide-up" style={{animationDelay: '0.4s'}}>
             <CardHeader>
               <CardTitle className="font-heading text-xl text-foreground">
@@ -176,9 +244,12 @@ export const Contact = () => {
                     name="name"
                     type="text"
                     value={formData.name}
-                    onChange={handleChange}
+                    onChange={handleNameChange}
+                    onKeyDown={handleNameKeyDown}
                     placeholder="Your full name"
+                    maxLength={50}
                     required
+                    className="text-foreground bg-background/50 border-border placeholder:text-muted-foreground"
                   />
                 </div>
 
@@ -191,34 +262,56 @@ export const Contact = () => {
                     name="email"
                     type="email"
                     value={formData.email}
-                    onChange={handleChange}
+                    onChange={handleEmailChange}
                     placeholder="your.email@example.com"
                     required
+                    className="text-foreground bg-background/50 border-border placeholder:text-muted-foreground"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-foreground mb-2">
-                    Message *
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label htmlFor="message" className="block text-sm font-medium text-foreground">
+                      Message *
+                    </label>
+                    <span className="text-xs text-muted-foreground">
+                      {formData.message.length}/{MESSAGE_MAX_LENGTH}
+                    </span>
+                  </div>
                   <Textarea
                     id="message"
                     name="message"
                     value={formData.message}
-                    onChange={handleChange}
+                    onChange={handleMessageChange}
                     placeholder="Tell me about your project or how I can help you..."
                     rows={5}
+                    maxLength={MESSAGE_MAX_LENGTH}
                     required
+                    className="text-foreground bg-background/50 border-border placeholder:text-muted-foreground"
+                  />
+                </div>
+
+                <div className="flex justify-center">
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={RECAPTCHA_SITE_KEY}
+                    onChange={(token) => setCaptchaToken(token)}
+                    onExpired={() => setCaptchaToken(null)}
                   />
                 </div>
 
                 <Button type="submit" variant="hero" size="lg" className="w-full group shadow-md hover:shadow-lg" disabled={isSubmitting}>
                   {isSubmitting ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Submitting...
+                    </>
                   ) : (
-                    <Send className="mr-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    <>
+                      <Send className="mr-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                      Send Message
+                    </>
                   )}
-                  {isSubmitting ? "Sending..." : "Send Message"}
                 </Button>
               </form>
             </CardContent>
